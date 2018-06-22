@@ -53,7 +53,6 @@ dtb-$(CONFIG_ARCH_MSM8909) += msm8909-sim.dtb \
 	msm8909-pm8916-qhd-rcm.dtb \
 	msm8909-pm8916-qrd-skut-evt.dtb \
 	msm8909-pm8916-qrd-skut-dvt.dtb \
-	msm8909-pm8916-qrd-skuq.dtb \
 	msm8208-cdp.dtb \
 	msm8208-mtp.dtb \
 	msm8208-1gb-cdp.dtb \
@@ -124,7 +123,10 @@ dtb-$(CONFIG_ARCH_MSM8916) += msm8916-cdp.dtb \
 	msm8929-mtp-wcd9306-smb1360.dtb \
 	msm8929-qrd-skul.dtb \
 	msm8929-qrd-skulb.dtb \
-	msm8929-cdp-jdi.dtb
+	msm8929-cdp-jdi.dtb \
+	test01a-msm8939-qrd-skuk.dtb \
+	test01a-msm8939-v3.0-qrd-skuk.dtb \
+
 dtb-$(CONFIG_ARCH_MSM8226) += msm8226-sim.dtb \
 	msm8226-fluid.dtb \
 	msm8226-v1-cdp.dtb \
