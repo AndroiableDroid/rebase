@@ -53,7 +53,6 @@ dtb-$(CONFIG_ARCH_MSM8909) += msm8909-sim.dtb \
 	msm8909-pm8916-qhd-rcm.dtb \
 	msm8909-pm8916-qrd-skut-evt.dtb \
 	msm8909-pm8916-qrd-skut-dvt.dtb \
-	msm8909-pm8916-qrd-skuq.dtb \
 	msm8208-cdp.dtb \
 	msm8208-mtp.dtb \
 	msm8208-1gb-cdp.dtb \
@@ -78,19 +77,6 @@ dtb-$(CONFIG_ARCH_MSM8909) += msm8909-sim.dtb \
 	apq8009-mtp-wcd9326-refboard.dtb \
 	apq8009-512mb-mtp-wcd9326-refboard.dtb
 
-ifeq ($(CONFIG_MACH_CKT_MSM8939),y)
-dtb-$(CONFIG_ARCH_MSM8916) += msm8939-spirit.dtb
-else ifeq ($(CONFIG_MACH_HAIER_MSM8916),y)
-dtb-$(CONFIG_ARCH_MSM8916) += msm8916-g36c1h.dtb
-else ifeq ($(CONFIG_MACH_LONGCHEER_MSM8916),y)
-dtb-$(CONFIG_ARCH_MSM8916) += msm8916-qrd-l8150.dtb
-else ifeq ($(CONFIG_MACH_HUAQIN_MSM8916),y)
-dtb-$(CONFIG_ARCH_MSM8916) += msm8916-ql790.dtb
-else ifeq ($(CONFIG_MACH_WINGTECH_MSM8916),y)
-dtb-$(CONFIG_ARCH_MSM8916) += msm8916-t86519a1.dtb
-else ifeq ($(CONFIG_MACH_YULONG_MSM8939),y)
-dtb-$(CONFIG_ARCH_MSM8916) += msm8939-cp8675-i01-p0.dtb
-else
 dtb-$(CONFIG_ARCH_MSM8916) += msm8916-cdp.dtb \
 	msm8916-cdp-smb1360.dtb \
 	msm8916-mtp.dtb \
@@ -137,8 +123,9 @@ dtb-$(CONFIG_ARCH_MSM8916) += msm8916-cdp.dtb \
 	msm8929-mtp-wcd9306-smb1360.dtb \
 	msm8929-qrd-skul.dtb \
 	msm8929-qrd-skulb.dtb \
-	msm8929-cdp-jdi.dtb
-endif
+	msm8929-cdp-jdi.dtb \
+	test01a-msm8939-qrd-skuk.dtb \
+	test01a-msm8939-v3.0-qrd-skuk.dtb \
 
 dtb-$(CONFIG_ARCH_MSM8226) += msm8226-sim.dtb \
 	msm8226-fluid.dtb \

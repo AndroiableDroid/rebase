@@ -45,7 +45,6 @@
 #define FALSE       0x00
 
 #define CMD_GET_HDR_SZ 16
-#define	U32_MAX	((u32)~0U)
 
 enum {
 	ASM_TOPOLOGY_CAL = 0,
@@ -422,14 +421,6 @@ static void q6asm_session_free(struct audio_client *ac)
 	ac->perf_mode = LEGACY_PCM_MODE;
 	ac->fptr_cache_ops = NULL;
 	return;
-}
-
-static uint32_t q6asm_get_next_buf(uint32_t curr_buf, uint32_t max_buf_cnt)
-{
-	pr_debug("%s: curr_buf = %d, max_buf_cnt = %d\n",
-		 __func__, curr_buf, max_buf_cnt);
-	curr_buf += 1;
-	return (curr_buf >= max_buf_cnt) ? 0 : curr_buf;
 }
 
 static int q6asm_map_cal_memory(struct cal_block_data *cal_block)
@@ -1083,7 +1074,7 @@ err:
 int q6asm_audio_client_buf_alloc(unsigned int dir,
 			struct audio_client *ac,
 			unsigned int bufsz,
-			uint32_t bufcnt)
+			unsigned int bufcnt)
 {
 	int cnt = 0;
 	int rc = 0;
@@ -1110,7 +1101,7 @@ int q6asm_audio_client_buf_alloc(unsigned int dir,
 			return 0;
 		}
 		mutex_lock(&ac->cmd_lock);
-		if (bufcnt > (U32_MAX/sizeof(struct audio_buffer))) {
+		if (bufcnt > (LONG_MAX/sizeof(struct audio_buffer))) {
 			pr_err("%s: Buffer size overflows", __func__);
 			mutex_unlock(&ac->cmd_lock);
 			goto fail;
@@ -1810,8 +1801,7 @@ void *q6asm_is_cpu_buf_avail(int dir, struct audio_client *ac, uint32_t *size,
 		user accesses this function,increase cpu
 		buf(to avoid another api)*/
 		port->buf[idx].used = dir;
-		port->cpu_buf = q6asm_get_next_buf(port->cpu_buf,
-						   port->max_buf_cnt);
+		port->cpu_buf = ((port->cpu_buf + 1) & (port->max_buf_cnt - 1));
 		mutex_unlock(&port->lock);
 		return data;
 	}
@@ -1862,8 +1852,7 @@ void *q6asm_is_cpu_buf_avail_nolock(int dir, struct audio_client *ac,
 	 * buf(to avoid another api)
 	 */
 	port->buf[idx].used = dir;
-	port->cpu_buf = q6asm_get_next_buf(port->cpu_buf,
-					   port->max_buf_cnt);
+	port->cpu_buf = ((port->cpu_buf + 1) & (port->max_buf_cnt - 1));
 	return data;
 }
 
@@ -4915,8 +4904,7 @@ static int __q6asm_read(struct audio_client *ac, bool is_custom_len_reqd,
 		read.buf_size = is_custom_len_reqd ? len : ab->size;
 		read.seq_id = port->dsp_buf;
 		read.hdr.token = port->dsp_buf;
-		port->dsp_buf = q6asm_get_next_buf(port->dsp_buf,
-						   port->max_buf_cnt);
+		port->dsp_buf = (port->dsp_buf + 1) & (port->max_buf_cnt - 1);
 		mutex_unlock(&port->lock);
 		dev_vdbg(ac->dev, "%s: buf add[%pK] token[%d] uid[%d]\n",
 				__func__, &ab->phys, read.hdr.token,
@@ -4994,8 +4982,7 @@ int q6asm_read_nolock(struct audio_client *ac)
 			}
 		}
 
-		port->dsp_buf = q6asm_get_next_buf(port->dsp_buf,
-						   port->max_buf_cnt);
+		port->dsp_buf = (port->dsp_buf + 1) & (port->max_buf_cnt - 1);
 		dev_vdbg(ac->dev, "%s: buf add[%pK] token[%d] uid[%d]\n",
 				__func__, &ab->phys, read.hdr.token,
 				read.seq_id);
@@ -5200,8 +5187,7 @@ int q6asm_write(struct audio_client *ac, uint32_t len, uint32_t msw_ts,
 			write.flags = (0x00000000 | (flags & 0x800000FF));
 		else
 			write.flags = (0x80000000 | flags);
-		port->dsp_buf = q6asm_get_next_buf(port->dsp_buf,
-						   port->max_buf_cnt);
+		port->dsp_buf = (port->dsp_buf + 1) & (port->max_buf_cnt - 1);
 		buf_node = list_first_entry(&ac->port[IN].mem_map_handle,
 				struct asm_buffer_node,
 				list);
@@ -5278,8 +5264,7 @@ int q6asm_write_nolock(struct audio_client *ac, uint32_t len, uint32_t msw_ts,
 			write.flags = (0x00000000 | (flags & 0x800000FF));
 		else
 			write.flags = (0x80000000 | flags);
-		port->dsp_buf = q6asm_get_next_buf(port->dsp_buf,
-						   port->max_buf_cnt);
+		port->dsp_buf = (port->dsp_buf + 1) & (port->max_buf_cnt - 1);
 
 		dev_vdbg(ac->dev, "%s: ab->phys[%pK]bufadd[0x%x]token[0x%x] buf_id[0x%x]buf_size[0x%x]mmaphdl[0x%x]"
 				, __func__,

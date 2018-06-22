@@ -21,22 +21,15 @@
 #undef CDBG
 #define CDBG(fmt, args...) pr_debug(fmt, ##args)
 
-static struct v4l2_file_operations msm_sensor_v4l2_subdev_fops;
 
-#ifdef CONFIG_MACH_YULONG
-static bool sensor_probed[2];
-static bool sensor_otp_prepared[2];
-#endif
-
-#ifdef CONFIG_MACH_CKT
-static uint32_t g_camera_id = 0;
+static uint32_t g_camera_id = 0;   /*main 0 sub 1*/
 
 uint32_t get_camera_id(void)
 {
-	return g_camera_id;
+    return g_camera_id;
 }
-#endif
 
+static struct v4l2_file_operations msm_sensor_v4l2_subdev_fops;
 static void msm_sensor_adjust_mclk(struct msm_camera_power_ctrl_t *ctrl)
 {
 	int idx;
@@ -470,6 +463,14 @@ int msm_sensor_power_up(struct msm_sensor_ctrl_t *s_ctrl)
 	slave_info = s_ctrl->sensordata->slave_info;
 	sensor_name = s_ctrl->sensordata->sensor_name;
 
+	if(!strcmp(sensor_name, "imx214_br")){
+		if(!strcmp(power_info->cam_vreg->reg_name, "cam_vdig")){
+			power_info->cam_vreg->min_voltage = 1000000;
+			power_info->cam_vreg->max_voltage = 1000000;
+			pr_err("msm_sensor_power_up:set imx214_br->cam_vdig to 1000000\n");
+		}
+	}
+
 	if (!power_info || !sensor_i2c_client || !slave_info ||
 		!sensor_name) {
 		pr_err("%s:%d failed: %p %p %p %p\n",
@@ -507,9 +508,12 @@ int msm_sensor_match_id(struct msm_sensor_ctrl_t *s_ctrl)
 	struct msm_camera_i2c_client *sensor_i2c_client;
 	struct msm_camera_slave_info *slave_info;
 	const char *sensor_name;
-#ifdef CONFIG_MACH_YULONG
-	int position;
-#endif
+    //Jelly add for s5k5e2 compatibale
+    #ifdef CONFIG_TEST_ONLY
+	uint16_t i=0,eepromMid = 0, eepromRmid = 0, eepromData;
+	uint32_t eepromAddr;
+    #endif
+    //endif
 	if (!s_ctrl) {
 		pr_err("%s:%d failed: %p\n",
 			__func__, __LINE__, s_ctrl);
@@ -530,35 +534,124 @@ int msm_sensor_match_id(struct msm_sensor_ctrl_t *s_ctrl)
 		sensor_i2c_client, slave_info->sensor_id_reg_addr,
 		&chipid, MSM_CAMERA_I2C_WORD_DATA);
 	if (rc < 0) {
-#ifdef CONFIG_MACH_YULONG
-		sensor_probed[s_ctrl->sensordata->sensor_info->position] = false;
-#endif
 		pr_err("%s: %s: read id failed\n", __func__, sensor_name);
 		return rc;
 	}
 
 	CDBG("%s: read id: 0x%x expected id 0x%x:\n", __func__, chipid,
 		slave_info->sensor_id);
+	
+	
 	if (chipid != slave_info->sensor_id) {
 		pr_err("msm_sensor_match_id chip id doesnot match\n");
+		//Jelly  added for FFBM test failed workaround 
+		pr_err("%s: read id: 0x%x expected id 0x%x:\n", __func__, chipid,
+		slave_info->sensor_id);
+		pr_err("%s: sensor_id_reg_addr: 0x%x sensor_slave_addr 0x%x:\n", __func__,
+		slave_info->sensor_id_reg_addr,slave_info->sensor_slave_addr);
+		if(s_ctrl->is_probe_succeed == 1)
+		{
+		  pr_err("Skip the match error!!Already probe succees !!!!!!!!!!\n");
+		}else
+		//end
 		return -ENODEV;
 	}
-#ifdef CONFIG_MACH_YULONG
-	position = s_ctrl->sensordata->sensor_info->position;
-	CDBG("sensor info: name: %s sensor_otp_prepared: %d\n",
-		s_ctrl->sensordata->sensor_name, sensor_otp_prepared[position]);
-	if(s_ctrl->func_tbl->sensor_prepare_otp && !sensor_otp_prepared[position]) {
-		rc = s_ctrl->func_tbl->sensor_prepare_otp(s_ctrl);
-		if (rc) {
-			pr_err("sensor_prepare_otp failed\n");
+    //Jelly add for s5k5e2 compatibale
+    #ifdef CONFIG_TEST_ONLY
+	if(!strcmp(sensor_name, "s5k5e2_SFS5C7597") || !strcmp(sensor_name, "s5k5e2_F5E2YAU")){
+		eepromMid = s_ctrl->sensordata->eeprom_mid;
+
+		for(i=0; i<s_ctrl->sensordata->eeprom_mid_addr_cnt;){
+			/* make initial state */
+			eepromAddr = 0x0A00;
+			eepromData = 0x04;
+			rc = sensor_i2c_client->i2c_func_tbl->i2c_write(
+					sensor_i2c_client, eepromAddr,
+					eepromData, MSM_CAMERA_I2C_BYTE_DATA);
+			if (rc < 0) {
+				pr_err("%s: %s: read mid failed\n", __func__, sensor_name);
+				return rc;
+			}
+			mdelay(1);
+
+			/* set the PAGE number of OTP(0 = the number of PAGE = 15) */
+			eepromAddr = 0x0A02;
+			eepromData = s_ctrl->sensordata->eeprom_mid_addr[i++];
+			rc = sensor_i2c_client->i2c_func_tbl->i2c_write(
+					sensor_i2c_client, eepromAddr,
+					eepromData, MSM_CAMERA_I2C_BYTE_DATA);
+			if (rc < 0) {
+				pr_err("%s: %s: read mid failed\n", __func__, sensor_name);
+				return rc;
+			}
+			mdelay(1);
+
+			/* set read mode of NVM controller Interface1 */
+			eepromAddr = 0x0A00;
+			eepromData = 0x01;
+			rc = sensor_i2c_client->i2c_func_tbl->i2c_write(
+					sensor_i2c_client, eepromAddr,
+					eepromData, MSM_CAMERA_I2C_BYTE_DATA);
+			if (rc < 0) {
+				pr_err("%s: %s: read mid failed\n", __func__, sensor_name);
+				return rc;
+			}
+			mdelay(1);
+
+			/* read eeprom module id */
+			rc = sensor_i2c_client->i2c_func_tbl->i2c_read(
+					sensor_i2c_client, s_ctrl->sensordata->eeprom_mid_addr[i++],
+					&eepromRmid, MSM_CAMERA_I2C_BYTE_DATA);
+			if (rc < 0) {
+				pr_err("%s: %s: read mid failed\n", __func__, sensor_name);
+				return rc;
+			}
+
+			pr_err("<eeprom_mid_match> eepromRmid:0x%02x, eepromPage:%d, eepromAddr:0x%04x\n",
+				eepromRmid,
+				s_ctrl->sensordata->eeprom_mid_addr[i-2],
+				s_ctrl->sensordata->eeprom_mid_addr[i-1]);
+
+			/* if match, stop loop */
+			if(eepromRmid == eepromMid){
+				break;
+			}
+		}
+
+		/* make initial state */
+		eepromAddr = 0x0A00;
+		eepromData = 0x04;
+		rc = sensor_i2c_client->i2c_func_tbl->i2c_write(
+				sensor_i2c_client, eepromAddr,
+				eepromData, MSM_CAMERA_I2C_BYTE_DATA);
+		if (rc < 0) {
+			pr_err("%s: %s: read mid failed\n", __func__, sensor_name);
+			return rc;
+		}
+		mdelay(1);
+
+		/* disable NVM controller */
+		eepromAddr = 0x0A00;
+		eepromData = 0x00;
+		rc = sensor_i2c_client->i2c_func_tbl->i2c_write(
+				sensor_i2c_client, eepromAddr,
+				eepromData, MSM_CAMERA_I2C_BYTE_DATA);
+		if (rc < 0) {
+			pr_err("%s: %s: read mid failed\n", __func__, sensor_name);
+			return rc;
+		}
+		mdelay(1);
+
+		if(eepromRmid == eepromMid){
+			pr_err("<eeprom_mid_match> sensor %s match expected eeprom mid:0x%02x success\n", sensor_name, eepromMid);
+			return 0;
 		} else {
-			CDBG("sensor OTP prepared");
-			sensor_otp_prepared[position] = true;
+			pr_err("<eeprom_mid_match> sensor %s match expected eeprom mid:0x%02x failed\n", sensor_name, eepromMid);
+			return -ENODEV;
 		}
 	}
-
-	sensor_probed[s_ctrl->sensordata->sensor_info->position] = true;
-#endif
+	#endif
+	//end
 	return rc;
 }
 
@@ -642,19 +735,15 @@ long msm_sensor_subdev_fops_ioctl(struct file *file,
 	return video_usercopy(file, cmd, arg, msm_sensor_subdev_do_ioctl);
 }
 
-#ifdef CONFIG_MACH_YULONG
-int msm_sensor_config32(struct msm_sensor_ctrl_t *s_ctrl,
-#else
 static int msm_sensor_config32(struct msm_sensor_ctrl_t *s_ctrl,
-#endif
 	void __user *argp)
 {
 	struct sensorb_cfg_data32 *cdata = (struct sensorb_cfg_data32 *)argp;
 	int32_t rc = 0;
 	int32_t i = 0;
 	mutex_lock(s_ctrl->msm_sensor_mutex);
-	CDBG("%s:%d %s cfgtype = %d\n", __func__, __LINE__,
-		s_ctrl->sensordata->sensor_name, cdata->cfgtype);
+	CDBG("%s:%d %s cfgtype = %d,session_id = %d\n", __func__, __LINE__,
+		s_ctrl->sensordata->sensor_name, cdata->cfgtype,s_ctrl->sensordata->sensor_info->session_id);
 	switch (cdata->cfgtype) {
 	case CFG_GET_SENSOR_INFO:
 		memcpy(cdata->cfg.sensor_info.sensor_name,
@@ -763,18 +852,6 @@ static int msm_sensor_config32(struct msm_sensor_ctrl_t *s_ctrl,
 		kfree(reg_setting);
 		break;
 	}
-#ifdef CONFIG_MACH_YULONG
-	case CFG_UPDATE_OTP: {
-		if(s_ctrl->func_tbl->sensor_update_otp) {
-			rc = s_ctrl->func_tbl->sensor_update_otp(s_ctrl);
-			if (rc) {
-				pr_err("sensor_update_otp failed\n");
-				break;
-			}
-		}
-		break;
-	}
-#endif
 	case CFG_SLAVE_READ_I2C: {
 		struct msm_camera_i2c_read_config read_config;
 		uint16_t local_data = 0;
@@ -883,9 +960,10 @@ static int msm_sensor_config32(struct msm_sensor_ctrl_t *s_ctrl,
 	}
 
 	case CFG_POWER_UP:
-#ifdef CONFIG_MACH_CKT
 		g_camera_id = s_ctrl->sensordata->cam_slave_info->camera_id;
-#endif
+			//CDBG("pengliu g_camaera_id = %d\n",g_camera_id);
+			pr_err("pengliu g_camaera_id = %d\n",g_camera_id);//jelly added for debug
+
 		if (s_ctrl->sensor_state != MSM_SENSOR_POWER_DOWN) {
 			pr_err("%s:%d failed: invalid state %d\n", __func__,
 				__LINE__, s_ctrl->sensor_state);
@@ -910,10 +988,6 @@ static int msm_sensor_config32(struct msm_sensor_ctrl_t *s_ctrl,
 		}
 		break;
 	case CFG_POWER_DOWN:
-#ifdef CONFIG_MACH_CKT
-		/* Reset active camera to back camera for torch */
-		g_camera_id = 0;
-#endif
 		kfree(s_ctrl->stop_setting.reg_setting);
 		s_ctrl->stop_setting.reg_setting = NULL;
 		if (s_ctrl->sensor_state != MSM_SENSOR_POWER_UP) {
@@ -1102,18 +1176,6 @@ int msm_sensor_config(struct msm_sensor_ctrl_t *s_ctrl, void __user *argp)
 		kfree(reg_setting);
 		break;
 	}
-#ifdef CONFIG_MACH_YULONG
-	case CFG_UPDATE_OTP: {
-		if(s_ctrl->func_tbl->sensor_update_otp) {
-			rc = s_ctrl->func_tbl->sensor_update_otp(s_ctrl);
-			if (rc) {
-				pr_err("sensor_update_otp failed\n");
-				break;
-			}
-		}
-		break;
-	}
-#endif
 	case CFG_SLAVE_READ_I2C: {
 		struct msm_camera_i2c_read_config read_config;
 		uint16_t local_data = 0;
@@ -1581,13 +1643,6 @@ int32_t msm_sensor_platform_probe(struct platform_device *pdev,
 	CDBG("%s:%d\n", __func__, __LINE__);
 	return rc;
 }
-
-#ifdef CONFIG_MACH_YULONG
-bool msm_sensor_is_probed(int position){
-	CDBG("%s sensor_probed[%d] = %d", __func__, position, sensor_probed[position]);
-	return sensor_probed[position];
-}
-#endif
 
 int msm_sensor_i2c_probe(struct i2c_client *client,
 	const struct i2c_device_id *id, struct msm_sensor_ctrl_t *s_ctrl)

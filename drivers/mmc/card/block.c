@@ -734,9 +734,6 @@ static int mmc_blk_ioctl_cmd(struct block_device *bdev,
 	mmc_rpm_hold(card->host, &card->dev);
 	mmc_claim_host(card->host);
 
-	if (mmc_card_get_bkops_en_manual(card))
-		mmc_stop_bkops(card);
-
 	err = mmc_blk_part_switch(card, md);
 	if (err)
 		goto cmd_rel_host;
@@ -878,9 +875,6 @@ static int mmc_blk_ioctl_rpmb_cmd(struct block_device *bdev,
 
 	mmc_rpm_hold(card->host, &card->dev);
 	mmc_claim_host(card->host);
-
-	if (mmc_card_get_bkops_en_manual(card))
-		mmc_stop_bkops(card);
 
 	err = mmc_blk_part_switch(card, md);
 	if (err)
@@ -3248,8 +3242,6 @@ static const struct mmc_fixup blk_fixups[] =
 	 */
 	MMC_FIXUP("Q7XSAB", CID_MANFID_SAMSUNG, 0x100, add_quirk_mmc,
 		  MMC_QUIRK_LONG_READ_TIME),
-	MMC_FIXUP("Q72SMB", CID_MANFID_SAMSUNG, 0x100, add_quirk_mmc,
-		  MMC_QUIRK_LONG_READ_TIME),
 
 	/*
 	 * On these Samsung MoviNAND parts, performing secure erase or
@@ -3272,8 +3264,6 @@ static const struct mmc_fixup blk_fixups[] =
 		  MMC_QUIRK_SEC_ERASE_TRIM_BROKEN),
 	MMC_FIXUP("VZL00M", CID_MANFID_SAMSUNG, CID_OEMID_ANY, add_quirk_mmc,
 		  MMC_QUIRK_SEC_ERASE_TRIM_BROKEN),
-	MMC_FIXUP("Q72SMB", CID_MANFID_SAMSUNG, CID_OEMID_ANY, add_quirk_mmc,
-		  MMC_QUIRK_SEC_ERASE_TRIM_BROKEN),
 	MMC_FIXUP(CID_NAME_ANY, CID_MANFID_HYNIX, CID_OEMID_ANY, add_quirk_mmc,
 		  MMC_QUIRK_BROKEN_DATA_TIMEOUT),
 
@@ -3284,9 +3274,6 @@ static const struct mmc_fixup blk_fixups[] =
 	END_FIXUP
 };
 
-#ifdef CONFIG_MMC_YL_PARAMS
-extern int yl_params_init(struct mmc_card *card);
-#endif
 static int mmc_blk_probe(struct mmc_card *card)
 {
 	struct mmc_blk_data *md, *part_md;
@@ -3316,12 +3303,6 @@ static int mmc_blk_probe(struct mmc_card *card)
 
 #ifdef CONFIG_MMC_BLOCK_DEFERRED_RESUME
 	mmc_set_bus_resume_policy(card->host, 1);
-#endif
-#ifdef CONFIG_MMC_YL_PARAMS
-	if (!strcmp(md->disk->disk_name, "mmcblk0")) {
-		if (yl_params_init(card))
-			pr_err("%s: call yl_params_init failed!\n", __func__);
-	}
 #endif
 	if (mmc_add_disk(md))
 		goto out;

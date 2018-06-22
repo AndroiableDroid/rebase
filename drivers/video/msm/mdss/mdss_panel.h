@@ -304,9 +304,6 @@ struct mipi_panel_info {
 	u32  init_delay;
 	u32  post_init_delay;
 	u32  phy_lane_clamp_mask;	/*DSI physical lane clamp mask*/
-#ifdef CONFIG_MACH_YULONG
-	char has_tps65132;
-#endif
 };
 
 struct edp_panel_info {
@@ -366,8 +363,6 @@ struct mdss_mdp_pp_tear_check {
 	u32 refx100;
 };
 
-struct mdss_livedisplay_ctx;
-
 struct mdss_panel_info {
 	u32 xres;
 	u32 yres;
@@ -413,7 +408,6 @@ struct mdss_panel_info {
 	u32 min_height;
 	u32 min_fps;
 	u32 max_fps;
-	u32 idle_fps;
 
 	u32 cont_splash_enabled;
 	bool esd_rdy;
@@ -443,8 +437,6 @@ struct mdss_panel_info {
 
 	/* debugfs structure for the panel */
 	struct mdss_panel_debugfs_info *debugfs_info;
-
-	struct mdss_livedisplay_ctx *livedisplay;
 };
 
 struct mdss_panel_data {
@@ -474,7 +466,6 @@ struct mdss_panel_debugfs_info {
 	u32 xres;
 	u32 yres;
 	struct lcd_panel_info lcdc;
-	struct dentry *parent;
 	u32 override_flag;
 	char frame_rate;
 	struct mdss_panel_debugfs_info *next;
